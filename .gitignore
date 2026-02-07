@@ -1,0 +1,8 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/Pharmacy-Management-AspNet-Webform/.vs/Pharmacy-Management-AspNet-Webform
+/Pharmacy-Management-AspNet-Webform/packages
+/Pharmacy-Management-AspNet-Webform/Pharmacy-Management-AspNet-Webform/bin
+/Pharmacy-Management-AspNet-Webform/Pharmacy-Management-AspNet-Webform/obj/Debug
