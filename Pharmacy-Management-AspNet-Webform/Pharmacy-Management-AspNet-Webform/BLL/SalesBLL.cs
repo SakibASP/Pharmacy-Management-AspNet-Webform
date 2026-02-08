@@ -27,5 +27,15 @@ namespace Pharmacy_Management_AspNet_Webform.BLL
         {
             return salesDAL.GetSaleById(invoiceId);
         }
+
+        public void UpdateSale(SalesMaster sale)
+        {
+            salesDAL.UpdateSale(sale);
+        }
+
+        public void DeleteSale(int invoiceId)
+        {
+            salesDAL.DeleteSale(invoiceId);
+        }
     }
 }

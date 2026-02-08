@@ -33,7 +33,8 @@
             <ul class="nav-links" id="navLinks" runat="server">
                 <li><a href="Dashboard.aspx">Dashboard</a></li>
                 <li><a href="Inventory.aspx">Inventory</a></li>
-                <li><a href="Billing.aspx">Billing</a></li>
+                <%--<li><a href="Billing.aspx">Billing</a></li>--%>
+                <li><a href="BillList.aspx">Bills</a></li>
             </ul>
             <div class="nav-right" id="navRight" runat="server">
                 <span id="lblUser" runat="server"></span>

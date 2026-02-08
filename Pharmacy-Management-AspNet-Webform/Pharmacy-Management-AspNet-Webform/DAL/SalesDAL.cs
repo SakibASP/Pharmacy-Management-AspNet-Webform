@@ -13,8 +13,9 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
         {
             using (SqlConnection con = DBHelper.GetConnection())
             {
-                SqlCommand cmd = new SqlCommand(SpConstant.GetNextInvoiceNumber, con);
+                SqlCommand cmd = new SqlCommand(SpConstant.SalesOperations, con);
                 cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@OperationId", 1);
                 con.Open();
                 return cmd.ExecuteScalar().ToString();
             }
@@ -28,8 +29,9 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
                 SqlTransaction transaction = con.BeginTransaction();
                 try
                 {
-                    SqlCommand cmdMaster = new SqlCommand(SpConstant.InsertSalesMaster, con, transaction);
+                    SqlCommand cmdMaster = new SqlCommand(SpConstant.SalesOperations, con, transaction);
                     cmdMaster.CommandType = CommandType.StoredProcedure;
+                    cmdMaster.Parameters.AddWithValue("@OperationId", 2);
                     cmdMaster.Parameters.AddWithValue("@InvoiceNumber", sale.InvoiceNumber);
                     cmdMaster.Parameters.AddWithValue("@InvoiceDate", sale.InvoiceDate);
                     cmdMaster.Parameters.AddWithValue("@CustomerName", sale.CustomerName);
@@ -45,8 +47,9 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
 
                     foreach (SalesDetail detail in sale.Details)
                     {
-                        SqlCommand cmdDetail = new SqlCommand(SpConstant.InsertSalesDetail, con, transaction);
+                        SqlCommand cmdDetail = new SqlCommand(SpConstant.SalesOperations, con, transaction);
                         cmdDetail.CommandType = CommandType.StoredProcedure;
+                        cmdDetail.Parameters.AddWithValue("@OperationId", 3);
                         cmdDetail.Parameters.AddWithValue("@InvoiceId", invoiceId);
                         cmdDetail.Parameters.AddWithValue("@MedicineId", detail.MedicineId);
                         cmdDetail.Parameters.AddWithValue("@BatchNo", (object)detail.BatchNo ?? DBNull.Value);
@@ -73,8 +76,9 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
             List<SalesMaster> list = new List<SalesMaster>();
             using (SqlConnection con = DBHelper.GetConnection())
             {
-                SqlCommand cmd = new SqlCommand(SpConstant.GetAllSales, con);
+                SqlCommand cmd = new SqlCommand(SpConstant.SalesOperations, con);
                 cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@OperationId", 4);
                 con.Open();
                 SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
@@ -101,8 +105,9 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
             SalesMaster sale = null;
             using (SqlConnection con = DBHelper.GetConnection())
             {
-                SqlCommand cmd = new SqlCommand(SpConstant.GetSaleById, con);
+                SqlCommand cmd = new SqlCommand(SpConstant.SalesOperations, con);
                 cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@OperationId", 5);
                 cmd.Parameters.AddWithValue("@Id", invoiceId);
                 con.Open();
                 SqlDataReader reader = cmd.ExecuteReader();
@@ -141,6 +146,87 @@ namespace Pharmacy_Management_AspNet_Webform.DAL
                 }
             }
             return sale;
+        }
+
+        public void UpdateSale(SalesMaster sale)
+        {
+            using (SqlConnection con = DBHelper.GetConnection())
+            {
+                con.Open();
+                SqlTransaction transaction = con.BeginTransaction();
+                try
+                {
+                    SqlCommand cmdRestore = new SqlCommand(SpConstant.SalesOperations, con, transaction);
+                    cmdRestore.CommandType = CommandType.StoredProcedure;
+                    cmdRestore.Parameters.AddWithValue("@OperationId", 7);
+                    cmdRestore.Parameters.AddWithValue("@InvoiceId", sale.Id);
+                    cmdRestore.ExecuteNonQuery();
+
+                    SqlCommand cmdMaster = new SqlCommand(SpConstant.SalesOperations, con, transaction);
+                    cmdMaster.CommandType = CommandType.StoredProcedure;
+                    cmdMaster.Parameters.AddWithValue("@OperationId", 6);
+                    cmdMaster.Parameters.AddWithValue("@Id", sale.Id);
+                    cmdMaster.Parameters.AddWithValue("@InvoiceDate", sale.InvoiceDate);
+                    cmdMaster.Parameters.AddWithValue("@CustomerName", sale.CustomerName);
+                    cmdMaster.Parameters.AddWithValue("@CustomerContact", (object)sale.CustomerContact ?? DBNull.Value);
+                    cmdMaster.Parameters.AddWithValue("@SubTotal", sale.SubTotal);
+                    cmdMaster.Parameters.AddWithValue("@Discount", sale.Discount);
+                    cmdMaster.Parameters.AddWithValue("@GrandTotal", sale.GrandTotal);
+                    cmdMaster.ExecuteNonQuery();
+
+                    foreach (SalesDetail detail in sale.Details)
+                    {
+                        SqlCommand cmdDetail = new SqlCommand(SpConstant.SalesOperations, con, transaction);
+                        cmdDetail.CommandType = CommandType.StoredProcedure;
+                        cmdDetail.Parameters.AddWithValue("@OperationId", 3);
+                        cmdDetail.Parameters.AddWithValue("@InvoiceId", sale.Id);
+                        cmdDetail.Parameters.AddWithValue("@MedicineId", detail.MedicineId);
+                        cmdDetail.Parameters.AddWithValue("@BatchNo", (object)detail.BatchNo ?? DBNull.Value);
+                        cmdDetail.Parameters.AddWithValue("@ExpiryDate", detail.ExpiryDate);
+                        cmdDetail.Parameters.AddWithValue("@Quantity", detail.Quantity);
+                        cmdDetail.Parameters.AddWithValue("@UnitPrice", detail.UnitPrice);
+                        cmdDetail.Parameters.AddWithValue("@LineTotal", detail.LineTotal);
+                        cmdDetail.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
+        }
+
+        public void DeleteSale(int invoiceId)
+        {
+            using (SqlConnection con = DBHelper.GetConnection())
+            {
+                con.Open();
+                SqlTransaction transaction = con.BeginTransaction();
+                try
+                {
+                    SqlCommand cmdRestore = new SqlCommand(SpConstant.SalesOperations, con, transaction);
+                    cmdRestore.CommandType = CommandType.StoredProcedure;
+                    cmdRestore.Parameters.AddWithValue("@OperationId", 7);
+                    cmdRestore.Parameters.AddWithValue("@InvoiceId", invoiceId);
+                    cmdRestore.ExecuteNonQuery();
+
+                    SqlCommand cmdDelete = new SqlCommand(SpConstant.SalesOperations, con, transaction);
+                    cmdDelete.CommandType = CommandType.StoredProcedure;
+                    cmdDelete.Parameters.AddWithValue("@OperationId", 8);
+                    cmdDelete.Parameters.AddWithValue("@Id", invoiceId);
+                    cmdDelete.ExecuteNonQuery();
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
         }
     }
 }

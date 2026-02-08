@@ -14,7 +14,12 @@
         <div class="dashboard-card card-billing">
             <h3>Billing System</h3>
             <p>Create sales invoices with multiple medicines.</p>
-            <a href="Billing.aspx">Go to Billing</a>
+            <a href="Billing.aspx">Generate Bill</a>
+        </div>
+        <div class="dashboard-card card-bills">
+            <h3>Bill List</h3>
+            <p>View, edit, delete invoices and export reports.</p>
+            <a href="BillList.aspx">Go to Bills</a>
         </div>
     </div>
 </asp:Content>

@@ -151,6 +151,7 @@
     <Content Include="Dashboard.aspx" />
     <Content Include="Inventory.aspx" />
     <Content Include="Billing.aspx" />
+    <Content Include="BillList.aspx" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
     <Content Include="Scripts\jquery-3.7.0.js" />
@@ -225,6 +226,13 @@
     </Compile>
     <Compile Include="Billing.aspx.designer.cs">
       <DependentUpon>Billing.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="BillList.aspx.cs">
+      <DependentUpon>BillList.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="BillList.aspx.designer.cs">
+      <DependentUpon>BillList.aspx</DependentUpon>
     </Compile>
     <Compile Include="Default.aspx.cs">
       <DependentUpon>Default.aspx</DependentUpon>

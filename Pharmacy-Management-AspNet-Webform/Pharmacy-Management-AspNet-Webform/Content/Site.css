@@ -290,6 +290,10 @@ a {
     background-color: #28a745;
 }
 
+.card-bills a {
+    background-color: #6f42c1;
+}
+
 .toolbar {
     margin-bottom: 15px;
     overflow: hidden;

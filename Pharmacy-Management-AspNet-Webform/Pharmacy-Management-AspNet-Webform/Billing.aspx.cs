@@ -15,12 +15,20 @@ namespace Pharmacy_Management_AspNet_Webform
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            LoadMedicineData();
             if (!IsPostBack)
             {
-                LoadInvoiceNumber();
-                txtInvoiceDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                string editId = Request.QueryString["id"];
+                if (!string.IsNullOrEmpty(editId))
+                {
+                    LoadSaleForEdit(int.Parse(editId));
+                }
+                else
+                {
+                    LoadInvoiceNumber();
+                    txtInvoiceDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
+                }
             }
-            LoadMedicineData();
         }
 
         private void LoadInvoiceNumber()
@@ -49,6 +57,46 @@ namespace Pharmacy_Management_AspNet_Webform
             ScriptManager.RegisterStartupScript(this, GetType(), "loadMeds", "loadMedicines(" + json + ");", true);
         }
 
+        private void LoadSaleForEdit(int saleId)
+        {
+            SalesMaster sale = salesBLL.GetSaleById(saleId);
+            if (sale == null)
+            {
+                ShowMessage("Bill not found.", false);
+                return;
+            }
+
+            hfEditId.Value = sale.Id.ToString();
+            txtInvoiceNumber.Text = sale.InvoiceNumber;
+            txtInvoiceDate.Text = sale.InvoiceDate.ToString("yyyy-MM-dd");
+            txtCustomerName.Text = sale.CustomerName;
+            txtContact.Text = sale.CustomerContact;
+            btnSaveBill.Text = "Update Invoice";
+            btnBackToBills.Visible = true;
+
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            List<object> items = new List<object>();
+            foreach (SalesDetail d in sale.Details)
+            {
+                items.Add(new
+                {
+                    MedicineId = d.MedicineId,
+                    BatchNo = d.BatchNo,
+                    ExpiryDate = d.ExpiryDate.ToString("yyyy-MM-dd"),
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice,
+                    LineTotal = d.LineTotal
+                });
+            }
+
+            string itemsJson = serializer.Serialize(items);
+            string script = "loadExistingItems(" + itemsJson + ", " +
+                sale.SubTotal.ToString(System.Globalization.CultureInfo.InvariantCulture) + ", " +
+                sale.Discount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ", " +
+                sale.GrandTotal.ToString(System.Globalization.CultureInfo.InvariantCulture) + ");";
+            ScriptManager.RegisterStartupScript(this, GetType(), "loadEdit", script, true);
+        }
+
         protected void btnSaveBill_Click(object sender, EventArgs e)
         {
             string itemsJson = hfItemsData.Value;
@@ -67,17 +115,21 @@ namespace Pharmacy_Management_AspNet_Webform
 
             var itemsList = (System.Collections.ArrayList)data["Items"];
             List<SalesDetail> details = new List<SalesDetail>();
+            bool isEdit = hfEditId.Value != "0";
 
             foreach (Dictionary<string, object> item in itemsList)
             {
                 int medId = Convert.ToInt32(item["MedicineId"]);
                 int qty = Convert.ToInt32(item["Quantity"]);
 
-                int stock = medicineBLL.CheckMedicineStock(medId);
-                if (qty > stock)
+                if (!isEdit)
                 {
-                    ShowMessage("Insufficient stock for medicine ID: " + medId, false);
-                    return;
+                    int stock = medicineBLL.CheckMedicineStock(medId);
+                    if (qty > stock)
+                    {
+                        ShowMessage("Insufficient stock for medicine ID: " + medId, false);
+                        return;
+                    }
                 }
 
                 details.Add(new SalesDetail
@@ -103,10 +155,19 @@ namespace Pharmacy_Management_AspNet_Webform
                 Details = details
             };
 
-            salesBLL.InsertSale(sale);
-            ShowMessage("Invoice " + sale.InvoiceNumber + " saved successfully!", true);
-            ClearForm();
-            LoadInvoiceNumber();
+            if (isEdit)
+            {
+                sale.Id = int.Parse(hfEditId.Value);
+                salesBLL.UpdateSale(sale);
+                Response.Redirect("BillList.aspx?msg=updated");
+            }
+            else
+            {
+                salesBLL.InsertSale(sale);
+                ShowMessage("Invoice " + sale.InvoiceNumber + " saved successfully!", true);
+                ClearForm();
+                LoadInvoiceNumber();
+            }
         }
 
         protected void btnClear_Click(object sender, EventArgs e)
@@ -115,12 +176,18 @@ namespace Pharmacy_Management_AspNet_Webform
             LoadInvoiceNumber();
         }
 
+        protected void btnBackToBills_Click(object sender, EventArgs e)
+        {
+            Response.Redirect("BillList.aspx");
+        }
+
         private void ClearForm()
         {
             txtCustomerName.Text = "";
             txtContact.Text = "";
             txtInvoiceDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
             hfItemsData.Value = "";
+            hfEditId.Value = "0";
             ScriptManager.RegisterStartupScript(this, GetType(), "clearItems", "document.getElementById('itemsBody').innerHTML=''; document.getElementById('spanSubTotal').innerText='0.00'; document.getElementById('txtDiscount').value='0'; document.getElementById('spanGrandTotal').innerText='0.00';", true);
         }
 

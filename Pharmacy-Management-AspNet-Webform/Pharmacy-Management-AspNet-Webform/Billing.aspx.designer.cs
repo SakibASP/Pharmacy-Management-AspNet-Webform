@@ -12,6 +12,8 @@ namespace Pharmacy_Management_AspNet_Webform
         protected global::System.Web.UI.WebControls.TextBox txtContact;
         protected global::System.Web.UI.WebControls.Button btnSaveBill;
         protected global::System.Web.UI.WebControls.Button btnClear;
+        protected global::System.Web.UI.WebControls.Button btnBackToBills;
         protected global::System.Web.UI.WebControls.HiddenField hfItemsData;
+        protected global::System.Web.UI.WebControls.HiddenField hfEditId;
     }
 }

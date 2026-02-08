@@ -64,12 +64,17 @@ CREATE OR ALTER PROCEDURE dbo.usp_ValidateUser
     @Password NVARCHAR(256)
 AS
 BEGIN
+    SET NOCOUNT ON;
     SELECT Id, Username FROM Users
     WHERE Username = @Username AND Password = @Password;
 END
 GO
 
-
+-- =============================================
+-- Medicine Operations (single SP with @OperationId)
+-- 1 = GetAll, 2 = GetById, 3 = Insert,
+-- 4 = Update, 5 = Delete, 6 = Dropdown, 7 = StockCheck
+-- =============================================
 CREATE OR ALTER PROCEDURE dbo.usp_MedicineOperations
     @OperationId INT,
     @Id INT = NULL,
@@ -82,116 +87,214 @@ CREATE OR ALTER PROCEDURE dbo.usp_MedicineOperations
     @UnitPrice DECIMAL(18,2) = NULL
 AS
 BEGIN
+    SET NOCOUNT ON;
+
     IF @OperationId = 1 -- Get all medicines
     BEGIN
         SELECT Id, Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice
         FROM Medicine
         ORDER BY Name;
     END
-    IF @OperationId = 2 -- Get medicine by Id
+    ELSE IF @OperationId = 2 -- Get medicine by Id
     BEGIN
         SELECT Id, Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice
         FROM Medicine
         WHERE Id = @Id;
     END
-    IF @OperationId = 3 -- Add new medicine
+    ELSE IF @OperationId = 3 -- Add new medicine
     BEGIN
-        INSERT INTO Medicine (Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice)
-        VALUES (@Name, @GenericName, @Category, @BatchNo, @ExpiryDate, @Quantity, @UnitPrice);
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            INSERT INTO Medicine (Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice)
+            VALUES (@Name, @GenericName, @Category, @BatchNo, @ExpiryDate, @Quantity, @UnitPrice);
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
     END
-    IF @OperationId = 4 -- Update existing medicine
+    ELSE IF @OperationId = 4 -- Update existing medicine
     BEGIN
-        UPDATE Medicine
-        SET Name = @Name, GenericName = @GenericName, Category = @Category,
-            BatchNo = @BatchNo, ExpiryDate = @ExpiryDate, Quantity = @Quantity, UnitPrice = @UnitPrice
-        WHERE Id = @Id;
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            UPDATE Medicine
+            SET Name = @Name, GenericName = @GenericName, Category = @Category,
+                BatchNo = @BatchNo, ExpiryDate = @ExpiryDate, Quantity = @Quantity, UnitPrice = @UnitPrice
+            WHERE Id = @Id;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
     END
-    IF @OperationId = 5 -- Delete medicine
+    ELSE IF @OperationId = 5 -- Delete medicine
     BEGIN
-        DELETE FROM Medicine WHERE Id = @Id;
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            DELETE FROM Medicine WHERE Id = @Id;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
     END
-    IF @OperationId = 6 -- Get medicines for dropdown
+    ELSE IF @OperationId = 6 -- Get medicines for dropdown
     BEGIN
         SELECT Id, Name, BatchNo, ExpiryDate, Quantity, UnitPrice
         FROM Medicine
         WHERE Quantity > 0
         ORDER BY Name;
     END
-    IF @OperationId = 7 -- Check medicine stock
+    ELSE IF @OperationId = 7 -- Check medicine stock
     BEGIN
         SELECT Quantity FROM Medicine WHERE Id = @Id;
     END
 END
-
-
 GO
 
-CREATE OR ALTER PROCEDURE dbo.usp_GetNextInvoiceNumber
+-- =============================================
+-- Sales Operations (single SP with @OperationId)
+-- 1 = GetNextInvoiceNumber
+-- 2 = InsertSalesMaster (OUTPUT @Id)
+-- 3 = InsertSalesDetail (+ stock decrement)
+-- 4 = GetAllSales
+-- 5 = GetSaleById (2 result sets: master + details)
+-- 6 = UpdateSalesMaster
+-- 7 = RestoreStockAndDeleteDetails
+-- 8 = DeleteSalesMaster
+-- =============================================
+CREATE OR ALTER PROCEDURE dbo.usp_SalesOperations
+    @OperationId INT,
+    @Id INT = NULL OUTPUT,
+    @InvoiceNumber NVARCHAR(20) = NULL,
+    @InvoiceDate DATE = NULL,
+    @CustomerName NVARCHAR(150) = NULL,
+    @CustomerContact NVARCHAR(50) = NULL,
+    @SubTotal DECIMAL(18,2) = NULL,
+    @Discount DECIMAL(18,2) = NULL,
+    @GrandTotal DECIMAL(18,2) = NULL,
+    @InvoiceId INT = NULL,
+    @MedicineId INT = NULL,
+    @BatchNo NVARCHAR(50) = NULL,
+    @ExpiryDate DATE = NULL,
+    @Quantity INT = NULL,
+    @UnitPrice DECIMAL(18,2) = NULL,
+    @LineTotal DECIMAL(18,2) = NULL
 AS
 BEGIN
-    DECLARE @LastNumber INT;
-    SELECT @LastNumber = ISNULL(MAX(CAST(REPLACE(InvoiceNumber, 'INV-', '') AS INT)), 0)
-    FROM SalesMaster;
-    SELECT 'INV-' + RIGHT('00000' + CAST(@LastNumber + 1 AS VARCHAR(5)), 5) AS NextInvoiceNumber;
+    SET NOCOUNT ON;
+
+    IF @OperationId = 1 -- Get next invoice number
+    BEGIN
+        DECLARE @LastNumber INT;
+        SELECT @LastNumber = ISNULL(MAX(CAST(REPLACE(InvoiceNumber, 'INV-', '') AS INT)), 0)
+        FROM SalesMaster;
+        SELECT 'INV-' + RIGHT('00000' + CAST(@LastNumber + 1 AS VARCHAR(5)), 5) AS NextInvoiceNumber;
+    END
+
+    ELSE IF @OperationId = 2 -- Insert sales master
+    BEGIN
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            INSERT INTO SalesMaster (InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal)
+            VALUES (@InvoiceNumber, @InvoiceDate, @CustomerName, @CustomerContact, @SubTotal, @Discount, @GrandTotal);
+            SET @Id = SCOPE_IDENTITY();
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
+    END
+
+    ELSE IF @OperationId = 3 -- Insert sales detail + decrement stock
+    BEGIN
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            INSERT INTO SalesDetail (InvoiceId, MedicineId, BatchNo, ExpiryDate, Quantity, UnitPrice, LineTotal)
+            VALUES (@InvoiceId, @MedicineId, @BatchNo, @ExpiryDate, @Quantity, @UnitPrice, @LineTotal);
+
+            UPDATE Medicine SET Quantity = Quantity - @Quantity WHERE Id = @MedicineId;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
+    END
+
+    ELSE IF @OperationId = 4 -- Get all sales
+    BEGIN
+        SELECT Id, InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal, CreatedDate
+        FROM SalesMaster
+        ORDER BY CreatedDate DESC;
+    END
+
+    ELSE IF @OperationId = 5 -- Get sale by Id (2 result sets)
+    BEGIN
+        SELECT Id, InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal
+        FROM SalesMaster
+        WHERE Id = @Id;
+
+        SELECT sd.Id, sd.MedicineId, m.Name AS MedicineName, sd.BatchNo, sd.ExpiryDate, sd.Quantity, sd.UnitPrice, sd.LineTotal
+        FROM SalesDetail sd
+        INNER JOIN Medicine m ON sd.MedicineId = m.Id
+        WHERE sd.InvoiceId = @Id;
+    END
+
+    ELSE IF @OperationId = 6 -- Update sales master
+    BEGIN
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            UPDATE SalesMaster
+            SET InvoiceDate = @InvoiceDate,
+                CustomerName = @CustomerName,
+                CustomerContact = @CustomerContact,
+                SubTotal = @SubTotal,
+                Discount = @Discount,
+                GrandTotal = @GrandTotal
+            WHERE Id = @Id;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
+    END
+
+    ELSE IF @OperationId = 7 -- Restore stock and delete details
+    BEGIN
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            UPDATE m
+            SET m.Quantity = m.Quantity + sd.Quantity
+            FROM Medicine m
+            INNER JOIN SalesDetail sd ON m.Id = sd.MedicineId
+            WHERE sd.InvoiceId = @InvoiceId;
+
+            DELETE FROM SalesDetail WHERE InvoiceId = @InvoiceId;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
+    END
+
+    ELSE IF @OperationId = 8 -- Delete sales master
+    BEGIN
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            DELETE FROM SalesMaster WHERE Id = @Id;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH
+    END
 END
 GO
-
-CREATE OR ALTER PROCEDURE dbo.usp_InsertSalesMaster
-    @InvoiceNumber NVARCHAR(20),
-    @InvoiceDate DATE,
-    @CustomerName NVARCHAR(150),
-    @CustomerContact NVARCHAR(50),
-    @SubTotal DECIMAL(18,2),
-    @Discount DECIMAL(18,2),
-    @GrandTotal DECIMAL(18,2),
-    @Id INT OUTPUT
-AS
-BEGIN
-    INSERT INTO SalesMaster (InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal)
-    VALUES (@InvoiceNumber, @InvoiceDate, @CustomerName, @CustomerContact, @SubTotal, @Discount, @GrandTotal);
-    SET @Id = SCOPE_IDENTITY();
-END
-
-GO
-
-
-CREATE OR ALTER PROCEDURE dbo.usp_InsertSalesDetail
-    @InvoiceId INT,
-    @MedicineId INT,
-    @BatchNo NVARCHAR(50),
-    @ExpiryDate DATE,
-    @Quantity INT,
-    @UnitPrice DECIMAL(18,2),
-    @LineTotal DECIMAL(18,2)
-AS
-BEGIN
-    INSERT INTO SalesDetail (InvoiceId, MedicineId, BatchNo, ExpiryDate, Quantity, UnitPrice, LineTotal)
-    VALUES (@InvoiceId, @MedicineId, @BatchNo, @ExpiryDate, @Quantity, @UnitPrice, @LineTotal);
-
-    UPDATE Medicine SET Quantity = Quantity - @Quantity WHERE Id = @MedicineId;
-END
-GO
-
-
-CREATE OR ALTER PROCEDURE usp_GetSaleById
-    @Id INT
-AS
-BEGIN
-    SELECT Id, InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal
-    FROM SalesMaster
-    WHERE Id = @Id;
-
-    SELECT sd.Id, sd.MedicineId, m.Name AS MedicineName, sd.BatchNo, sd.ExpiryDate, sd.Quantity, sd.UnitPrice, sd.LineTotal
-    FROM SalesDetail sd
-    INNER JOIN Medicine m ON sd.MedicineId = m.Id
-    WHERE sd.InvoiceId = @Id;
-END
-GO
-
-CREATE OR ALTER PROCEDURE usp_GetAllSales
-AS
-BEGIN
-    SELECT Id, InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal, CreatedDate
-    FROM SalesMaster
-    ORDER BY CreatedDate DESC;
-END

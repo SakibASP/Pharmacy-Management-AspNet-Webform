@@ -78,13 +78,16 @@
         <div class="modal-actions" style="margin-top:25px;">
             <asp:Button ID="btnSaveBill" runat="server" Text="Save Invoice" CssClass="btn btn-primary" OnClick="btnSaveBill_Click" ValidationGroup="BillForm" OnClientClick="return prepareSave();" />
             <asp:Button ID="btnClear" runat="server" Text="Clear" CssClass="btn btn-secondary" OnClick="btnClear_Click" CausesValidation="false" />
+            <asp:Button ID="btnBackToBills" runat="server" Text="Back to Bills" CssClass="btn btn-secondary" OnClick="btnBackToBills_Click" CausesValidation="false" Visible="false" />
         </div>
 
         <asp:HiddenField ID="hfItemsData" runat="server" />
+        <asp:HiddenField ID="hfEditId" runat="server" Value="0" />
     </div>
 
     <script type="text/javascript">
         var medicineData = [];
+        var isEditMode = false;
 
         function loadMedicines(data) {
             medicineData = data;
@@ -188,12 +191,14 @@
                     return false;
                 }
 
-                var sel = rows[i].querySelector('.med-select');
-                var opt = sel.options[sel.selectedIndex];
-                var stock = parseInt(opt.getAttribute('data-stock')) || 0;
-                if (qty > stock) {
-                    alert('Insufficient stock for ' + opt.text + '. Available: ' + stock);
-                    return false;
+                if (!isEditMode) {
+                    var sel = rows[i].querySelector('.med-select');
+                    var opt = sel.options[sel.selectedIndex];
+                    var stock = parseInt(opt.getAttribute('data-stock')) || 0;
+                    if (qty > stock) {
+                        alert('Insufficient stock for ' + opt.text + '. Available: ' + stock);
+                        return false;
+                    }
                 }
 
                 items.push({
@@ -219,6 +224,34 @@
 
             document.getElementById('<%= hfItemsData.ClientID %>').value = JSON.stringify(data);
             return true;
+        }
+
+        function loadExistingItems(items, subTotal, discount, grandTotal) {
+            isEditMode = true;
+            var tbody = document.getElementById('itemsBody');
+            tbody.innerHTML = '';
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var row = document.createElement('tr');
+                row.innerHTML = '<td><select class="med-select" onchange="onMedicineChange(this);">' + getMedicineOptions() + '</select></td>' +
+                    '<td><input type="text" class="batch-no" readonly /></td>' +
+                    '<td><input type="text" class="expiry-date" readonly /></td>' +
+                    '<td><input type="number" class="qty" min="1" value="' + item.Quantity + '" onkeyup="calculateRow(this);" onchange="calculateRow(this);" /></td>' +
+                    '<td><input type="text" class="unit-price" readonly /></td>' +
+                    '<td><input type="text" class="line-total" readonly /></td>' +
+                    '<td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this);">X</button></td>';
+                tbody.appendChild(row);
+
+                var sel = row.querySelector('.med-select');
+                sel.value = item.MedicineId.toString();
+                row.querySelector('.batch-no').value = item.BatchNo;
+                row.querySelector('.expiry-date').value = item.ExpiryDate;
+                row.querySelector('.unit-price').value = parseFloat(item.UnitPrice).toFixed(2);
+                row.querySelector('.line-total').value = parseFloat(item.LineTotal).toFixed(2);
+            }
+            document.getElementById('spanSubTotal').innerText = subTotal.toFixed(2);
+            document.getElementById('txtDiscount').value = discount;
+            document.getElementById('spanGrandTotal').innerText = grandTotal.toFixed(2);
         }
     </script>
 </asp:Content>
