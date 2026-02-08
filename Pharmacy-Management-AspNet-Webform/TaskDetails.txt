@@ -1,0 +1,34 @@
+Project: Pharmacy Inventory & Billing System 
+1. Objective 
+The primary objective is to develop a responsive(optional) Pharmacy Management application using .NET C#, SQL Server (T-SQL), and Visual Studio. You must demonstrate your ability to manage Master-Detail data relationships and handle database transactions.
+________________________________________
+2. Technical Specifications 
+•	Development Environment: Visual Studio.
+•	Backend: .NET Core MVC/Razor or Web Forms(preferred) using C#.
+•	Database: SQL Server.
+•	Frontend Constraints: * Strictly No Bootstrap, Tailwind, or external UI libraries.
+o	All styling must be implemented with Pure CSS.
+•	Scripts: Use JavaScript/jQuery for dynamic row management and real-time calculations.
+________________________________________
+3. Functional Modules 
+A. Authentication & Navigation 
+•	Login Page: Implement a secure login with basic validation for Username and Password.
+•	Dashboard: A welcome page containing clear navigation links to the Inventory and Billing sections.
+B. Inventory Management (Data List Page) 
+•	Display a table showing current medicine stocks.
+•	Include action buttons for each row: View, Edit, and Delete.
+•	Provide functionality to export the stock list to Excel or PDF.
+C. Master-Detail Billing System (Core Feature) 
+This page allows for the creation of sales invoices containing multiple medicines within a single transaction.
+•	Master Section (Invoice Header):
+o	Fields: Auto-generated Invoice Number, Date, Customer Name, and Contact.
+o	Utilize standard input types (textboxes, dropdowns, and datepicker).
+o	This section maps to the SalesMaster table.
+•	Detail Section (Dynamic Item Grid):
+o	Implement a nested table where rows are added dynamically using javascript/jQuery.
+o	Fields per row: Medicine selection (Dropdown), Batch No, Expiry Date, Quantity, and Unit Price.
+o	Include 'Delete' or 'Edit' functionality for each row.
+•	Calculations & Validation:
+o	Real-time Totals: Automatically calculate the Line Total for each row and the Grand Total (including Sub-total and Discount) using JavaScript.
+o	Stock Validation: Before saving, the system must verify in the SQL database if the requested quantity is available in stock.
+
