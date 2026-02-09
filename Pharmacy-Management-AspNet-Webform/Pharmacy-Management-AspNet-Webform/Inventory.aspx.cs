@@ -4,6 +4,9 @@ using System.IO;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 using Pharmacy_Management_AspNet_Webform.BLL;
 using Pharmacy_Management_AspNet_Webform.Models;
 
@@ -121,32 +124,52 @@ namespace Pharmacy_Management_AspNet_Webform
 
         protected void btnExportExcel_Click(object sender, EventArgs e)
         {
-            Response.Clear();
-            Response.Buffer = true;
-            Response.AddHeader("content-disposition", "attachment;filename=MedicineStock.xls");
-            Response.Charset = "";
-            Response.ContentType = "application/vnd.ms-excel";
+            List<Medicine> medicines = medicineBLL.GetAllMedicines();
 
-            using (StringWriter sw = new StringWriter())
+            using (var workbook = new XLWorkbook())
             {
-                HtmlTextWriter hw = new HtmlTextWriter(sw);
-                gvMedicines.AllowPaging = false;
-                BindGrid();
+                var ws = workbook.Worksheets.Add("Medicine Stock");
 
-                foreach (GridViewRow row in gvMedicines.Rows)
+                ws.Cell(1, 1).Value = "ID";
+                ws.Cell(1, 2).Value = "Name";
+                ws.Cell(1, 3).Value = "Generic Name";
+                ws.Cell(1, 4).Value = "Category";
+                ws.Cell(1, 5).Value = "Batch No";
+                ws.Cell(1, 6).Value = "Expiry Date";
+                ws.Cell(1, 7).Value = "Quantity";
+                ws.Cell(1, 8).Value = "Unit Price";
+
+                var headerRange = ws.Range(1, 1, 1, 8);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
+                headerRange.Style.Font.FontColor = XLColor.White;
+
+                for (int i = 0; i < medicines.Count; i++)
                 {
-                    for (int i = 0; i < row.Cells.Count - 1; i++)
-                    {
-                        row.Cells[i].Attributes.Add("class", "textmode");
-                    }
-                    row.Cells[row.Cells.Count - 1].Visible = false;
+                    int row = i + 2;
+                    ws.Cell(row, 1).Value = medicines[i].Id;
+                    ws.Cell(row, 2).Value = medicines[i].Name;
+                    ws.Cell(row, 3).Value = medicines[i].GenericName;
+                    ws.Cell(row, 4).Value = medicines[i].Category;
+                    ws.Cell(row, 5).Value = medicines[i].BatchNo;
+                    ws.Cell(row, 6).Value = medicines[i].ExpiryDate.ToString("yyyy-MM-dd");
+                    ws.Cell(row, 7).Value = medicines[i].Quantity;
+                    ws.Cell(row, 8).Value = medicines[i].UnitPrice;
                 }
-                gvMedicines.HeaderRow.Cells[gvMedicines.HeaderRow.Cells.Count - 1].Visible = false;
 
-                gvMedicines.RenderControl(hw);
-                string style = "<style>.textmode{mso-number-format:\\@;}</style>";
-                Response.Write(style);
-                Response.Output.Write(sw.ToString());
+                ws.Columns().AdjustToContents();
+
+                Response.Clear();
+                Response.Buffer = true;
+                Response.AddHeader("content-disposition", "attachment;filename=MedicineStock.xlsx");
+                Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+                using (var ms = new MemoryStream())
+                {
+                    workbook.SaveAs(ms);
+                    ms.WriteTo(Response.OutputStream);
+                }
+
                 Response.Flush();
                 Response.End();
             }
@@ -154,45 +177,78 @@ namespace Pharmacy_Management_AspNet_Webform
 
         protected void btnExportPdf_Click(object sender, EventArgs e)
         {
-            Response.Clear();
-            Response.Buffer = true;
-            Response.AddHeader("content-disposition", "attachment;filename=MedicineStock.html");
-            Response.Charset = "";
-            Response.ContentType = "text/html";
+            List<Medicine> medicines = medicineBLL.GetAllMedicines();
 
-            using (StringWriter sw = new StringWriter())
+            using (var ms = new MemoryStream())
             {
-                sw.WriteLine("<html><head><title>Medicine Stock Report</title>");
-                sw.WriteLine("<style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #333;padding:8px;text-align:left;}th{background:#1e293b;color:#fff;}</style>");
-                sw.WriteLine("</head><body>");
-                sw.WriteLine("<h2>Medicine Stock Report</h2>");
-                sw.WriteLine("<p>Generated: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm") + "</p>");
+                Document doc = new Document(PageSize.A4.Rotate(), 25, 25, 30, 30);
+                PdfWriter.GetInstance(doc, ms);
+                doc.Open();
 
-                List<Medicine> medicines = medicineBLL.GetAllMedicines();
-                sw.WriteLine("<table><tr><th>ID</th><th>Name</th><th>Generic Name</th><th>Category</th><th>Batch No</th><th>Expiry Date</th><th>Quantity</th><th>Unit Price</th></tr>");
-                foreach (Medicine med in medicines)
+                Font titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                Font headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
+                Font cellFont = FontFactory.GetFont(FontFactory.HELVETICA, 9);
+                Font dateFont = FontFactory.GetFont(FontFactory.HELVETICA, 8, BaseColor.GRAY);
+
+                Paragraph title = new Paragraph("Medicine Stock Report", titleFont);
+                title.SpacingAfter = 5;
+                doc.Add(title);
+
+                Paragraph dateLine = new Paragraph("Generated: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm"), dateFont);
+                dateLine.SpacingAfter = 15;
+                doc.Add(dateLine);
+
+                PdfPTable table = new PdfPTable(8);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 5f, 15f, 15f, 12f, 10f, 12f, 8f, 10f });
+
+                BaseColor headerBg = new BaseColor(30, 41, 59);
+                string[] headers = { "ID", "Name", "Generic Name", "Category", "Batch No", "Expiry Date", "Qty", "Unit Price" };
+                foreach (string header in headers)
                 {
-                    sw.WriteLine("<tr>");
-                    sw.WriteLine("<td>" + med.Id + "</td>");
-                    sw.WriteLine("<td>" + HttpUtility.HtmlEncode(med.Name) + "</td>");
-                    sw.WriteLine("<td>" + HttpUtility.HtmlEncode(med.GenericName) + "</td>");
-                    sw.WriteLine("<td>" + HttpUtility.HtmlEncode(med.Category) + "</td>");
-                    sw.WriteLine("<td>" + HttpUtility.HtmlEncode(med.BatchNo) + "</td>");
-                    sw.WriteLine("<td>" + med.ExpiryDate.ToString("yyyy-MM-dd") + "</td>");
-                    sw.WriteLine("<td>" + med.Quantity + "</td>");
-                    sw.WriteLine("<td>" + med.UnitPrice.ToString("N2") + "</td>");
-                    sw.WriteLine("</tr>");
+                    PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
+                    cell.BackgroundColor = headerBg;
+                    cell.Padding = 6;
+                    table.AddCell(cell);
                 }
-                sw.WriteLine("</table></body></html>");
 
-                Response.Output.Write(sw.ToString());
+                BaseColor altRow = new BaseColor(241, 245, 249);
+                for (int i = 0; i < medicines.Count; i++)
+                {
+                    BaseColor bg = i % 2 == 1 ? altRow : BaseColor.WHITE;
+                    Medicine med = medicines[i];
+
+                    string[] values = {
+                        med.Id.ToString(),
+                        med.Name,
+                        med.GenericName,
+                        med.Category,
+                        med.BatchNo,
+                        med.ExpiryDate.ToString("yyyy-MM-dd"),
+                        med.Quantity.ToString(),
+                        med.UnitPrice.ToString("N2")
+                    };
+
+                    foreach (string val in values)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(val, cellFont));
+                        cell.BackgroundColor = bg;
+                        cell.Padding = 5;
+                        table.AddCell(cell);
+                    }
+                }
+
+                doc.Add(table);
+                doc.Close();
+
+                Response.Clear();
+                Response.Buffer = true;
+                Response.AddHeader("content-disposition", "attachment;filename=MedicineStock.pdf");
+                Response.ContentType = "application/pdf";
+                Response.BinaryWrite(ms.ToArray());
                 Response.Flush();
                 Response.End();
             }
-        }
-
-        public override void VerifyRenderingInServerForm(Control control)
-        {
         }
 
         private void ClearForm()
