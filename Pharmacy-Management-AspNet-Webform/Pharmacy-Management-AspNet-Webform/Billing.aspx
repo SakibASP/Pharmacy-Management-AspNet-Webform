@@ -96,7 +96,7 @@
         function getMedicineOptions() {
             var options = '<option value="">-- Select Medicine --</option>';
             for (var i = 0; i < medicineData.length; i++) {
-                options += '<option value="' + medicineData[i].Id + '" data-batch="' + medicineData[i].BatchNo + '" data-expiry="' + medicineData[i].ExpiryDate + '" data-price="' + medicineData[i].UnitPrice + '" data-stock="' + medicineData[i].Quantity + '">' + medicineData[i].Name + ' (Stock: ' + medicineData[i].Quantity + ')' + '</option>';
+                options += '<option value="' + medicineData[i].Id + '" data-batch="' + medicineData[i].BatchNo + '" data-expiry="' + medicineData[i].ExpiryDate + '" data-price="' + medicineData[i].UnitPrice + '" data-stock="' + medicineData[i].Quantity + '">' + medicineData[i].Name + '</option>';
             }
             return options;
         }

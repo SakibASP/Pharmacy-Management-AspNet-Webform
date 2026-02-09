@@ -12,10 +12,6 @@
     <div class="card">
         <div class="toolbar">
             <asp:Button ID="btnNewBill" runat="server" Text="+ New Bill" CssClass="btn btn-primary" OnClick="btnNewBill_Click" CausesValidation="false" />
-            <div class="toolbar-right">
-                <asp:Button ID="btnExportExcel" runat="server" Text="Export Excel" CssClass="btn btn-success btn-sm" OnClick="btnExportExcel_Click" CausesValidation="false" />
-                <asp:Button ID="btnExportPdf" runat="server" Text="Export PDF" CssClass="btn btn-warning btn-sm" OnClick="btnExportPdf_Click" CausesValidation="false" />
-            </div>
         </div>
 
         <asp:GridView ID="gvBills" runat="server" AutoGenerateColumns="false" CssClass="data-table"

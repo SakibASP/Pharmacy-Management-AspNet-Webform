@@ -8,14 +8,14 @@ GO
 USE PharmacyDB;
 GO
 
-CREATE TABLE Users (
+CREATE TABLE dbo.Users (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     Username NVARCHAR(50) NOT NULL UNIQUE,
     Password NVARCHAR(256) NOT NULL
 );
 GO
 
-CREATE TABLE Medicine (
+CREATE TABLE dbo.Medicine (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     Name NVARCHAR(150) NOT NULL,
     GenericName NVARCHAR(150),
@@ -27,7 +27,7 @@ CREATE TABLE Medicine (
 );
 GO
 
-CREATE TABLE SalesMaster (
+CREATE TABLE dbo.SalesMaster (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     InvoiceNumber NVARCHAR(20) NOT NULL UNIQUE,
     InvoiceDate DATE NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE SalesMaster (
 );
 GO
 
-CREATE TABLE SalesDetail (
+CREATE TABLE dbo.SalesDetail (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     InvoiceId INT NOT NULL,
     MedicineId INT NOT NULL,
@@ -52,6 +52,19 @@ CREATE TABLE SalesDetail (
     FOREIGN KEY (InvoiceId) REFERENCES SalesMaster(Id),
     FOREIGN KEY (MedicineId) REFERENCES Medicine(Id)
 );
+GO
+
+CREATE TABLE dbo.ErrorLog (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ErrorNumber INT NULL,
+    ErrorSeverity INT NULL,
+    ErrorState INT NULL,
+    ErrorProcedure NVARCHAR(128)  NULL,
+    ErrorLine INT NULL,
+    ErrorMessage NVARCHAR(4000) NULL,
+    ErrorDate DATETIME2(7) NOT NULL DEFAULT GETDATE()
+);
+
 GO
 
 INSERT INTO Users (Username, Password) VALUES ('admin', 'admin123');
@@ -88,7 +101,6 @@ CREATE OR ALTER PROCEDURE dbo.usp_MedicineOperations
 AS
 BEGIN
     SET NOCOUNT ON;
-
     IF @OperationId = 1 -- Get all medicines
     BEGIN
         SELECT Id, Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice
@@ -104,40 +116,37 @@ BEGIN
     ELSE IF @OperationId = 3 -- Add new medicine
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             INSERT INTO Medicine (Name, GenericName, Category, BatchNo, ExpiryDate, Quantity, UnitPrice)
             VALUES (@Name, @GenericName, @Category, @BatchNo, @ExpiryDate, @Quantity, @UnitPrice);
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
     ELSE IF @OperationId = 4 -- Update existing medicine
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             UPDATE Medicine
             SET Name = @Name, GenericName = @GenericName, Category = @Category,
                 BatchNo = @BatchNo, ExpiryDate = @ExpiryDate, Quantity = @Quantity, UnitPrice = @UnitPrice
             WHERE Id = @Id;
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
     ELSE IF @OperationId = 5 -- Delete medicine
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             DELETE FROM Medicine WHERE Id = @Id;
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
@@ -153,6 +162,7 @@ BEGIN
         SELECT Quantity FROM Medicine WHERE Id = @Id;
     END
 END
+
 GO
 
 -- =============================================
@@ -198,14 +208,13 @@ BEGIN
     ELSE IF @OperationId = 2 -- Insert sales master
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             INSERT INTO SalesMaster (InvoiceNumber, InvoiceDate, CustomerName, CustomerContact, SubTotal, Discount, GrandTotal)
             VALUES (@InvoiceNumber, @InvoiceDate, @CustomerName, @CustomerContact, @SubTotal, @Discount, @GrandTotal);
             SET @Id = SCOPE_IDENTITY();
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
@@ -221,7 +230,9 @@ BEGIN
             COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
@@ -248,7 +259,6 @@ BEGIN
     ELSE IF @OperationId = 6 -- Update sales master
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             UPDATE SalesMaster
             SET InvoiceDate = @InvoiceDate,
                 CustomerName = @CustomerName,
@@ -257,10 +267,10 @@ BEGIN
                 Discount = @Discount,
                 GrandTotal = @GrandTotal
             WHERE Id = @Id;
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
@@ -279,7 +289,9 @@ BEGIN
             COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
@@ -287,12 +299,11 @@ BEGIN
     ELSE IF @OperationId = 8 -- Delete sales master
     BEGIN
         BEGIN TRY
-            BEGIN TRANSACTION;
             DELETE FROM SalesMaster WHERE Id = @Id;
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
+            INSERT INTO ErrorLog (ErrorNumber, ErrorSeverity, ErrorState, ErrorProcedure, ErrorLine, ErrorMessage, ErrorDate)
+            VALUES (ERROR_NUMBER(), ERROR_SEVERITY(), ERROR_STATE(), ERROR_PROCEDURE(), ERROR_LINE(), ERROR_MESSAGE(), GETDATE());
             THROW;
         END CATCH
     END
