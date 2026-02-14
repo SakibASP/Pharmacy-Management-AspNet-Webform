@@ -3,7 +3,7 @@ using System.Data.SqlClient;
 
 namespace Pharmacy_Management_AspNet_Webform.DAL
 {
-   internal sealed class DBHelper
+    internal sealed class DBHelper
     {
         public static string GetConnectionString()
         {

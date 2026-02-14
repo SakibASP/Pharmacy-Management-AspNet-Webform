@@ -3,7 +3,7 @@ using Pharmacy_Management_AspNet_Webform.Models;
 
 namespace Pharmacy_Management_AspNet_Webform.BLL
 {
-    public class UserBLL
+    public sealed class UserBLL
     {
         private readonly UserDAL userDAL = new UserDAL();
 

@@ -5,9 +5,9 @@ using Pharmacy_Management_AspNet_Webform.Models;
 
 namespace Pharmacy_Management_AspNet_Webform.BLL
 {
-    public class MedicineBLL
+    public sealed class MedicineBLL
     {
-        private MedicineDAL medicineDAL = new MedicineDAL();
+        private readonly MedicineDAL medicineDAL = new MedicineDAL();
 
         public List<Medicine> GetAllMedicines()
         {

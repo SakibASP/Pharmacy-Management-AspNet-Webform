@@ -4,7 +4,7 @@ using Pharmacy_Management_AspNet_Webform.Models;
 
 namespace Pharmacy_Management_AspNet_Webform.BLL
 {
-    public class SalesBLL
+    public sealed class SalesBLL
     {
         private readonly SalesDAL salesDAL = new SalesDAL();
 
