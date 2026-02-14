@@ -1,0 +1,5 @@
+1. Asp.net webform (.NET Framework 4.8.1)
+2. MS SQL Server 2022
+3. ClosedXML library for Excel generation and iTextSharp for PDF generation
+4. Raw CSS for ui design
+5. jQuery for dynamic table row generation

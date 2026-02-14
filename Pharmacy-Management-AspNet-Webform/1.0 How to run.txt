@@ -1,0 +1,6 @@
+1. Install SQL server Database (2019+ recommended) and SSMS.
+2. Open DB Scripts folder
+3. Run the script (1.0 CreateDBwithTable.sql)
+4. Install Visual Studio
+5. Open the solution file (Pharmacy-Management-AspNet-Webform.sln) of this folder 
+6. Build and Run the project
